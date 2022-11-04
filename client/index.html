@@ -65,6 +65,7 @@
         <h2>Open Snapdrop on other devices to send files</h2>
     </x-no-peers>
     <x-instructions desktop="Click to send files or right click to send a message" mobile="Tap to send files or long tap to send a message"></x-instructions>
+    <a id="cancelSendOnClickModeBtn" class="button" close hidden style="z-index: 2">Cancel</a>
     <!-- Footer -->
     <footer class="column">
         <svg class="icon logo">
@@ -211,7 +212,9 @@
          <rect fill="none" height="24" width="24"/><path d="M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36c-0.98,1.37-2.58,2.26-4.4,2.26 c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/>
         </symbol>
     </svg>
+    <div id="b64gzip" data-filename='' data-b64gzip=''></div>
     <!-- Scripts -->
+    <script src="scripts/pako.js"></script>
     <script src="scripts/network.js"></script>
     <script src="scripts/ui.js"></script>
     <script src="scripts/theme.js" async></script>

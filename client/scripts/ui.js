@@ -21,6 +21,7 @@ class PeersUI {
         Events.on('peers', e => this._onPeers(e.detail));
         Events.on('file-progress', e => this._onFileProgress(e.detail));
         Events.on('paste', e => this._onPaste(e));
+        this._sendOnClickModeOnLoad()
     }
 
     _onPeerJoined(peer) {
@@ -52,6 +53,103 @@ class PeersUI {
         const $peers = $$('x-peers').innerHTML = '';
     }
 
+    _getPeers() {
+        let peers = []
+        const peersNodes = document.querySelectorAll('x-peer');
+        peersNodes.forEach(function(peersNode) {
+            peers.push({
+                id: peersNode.id,
+                name: peersNode.name,
+                rtcSupported: peersNode.rtcSupported
+            })
+        });
+        return peers;
+    }
+
+    _decompressGz(b64data) {
+        // source: https://stackoverflow.com/a/22675494/14678591
+        // Decode base64 (convert ascii to binary)
+        const decodedAsString     = atob(b64data);
+
+        // Convert binary string to character-number array
+        const data = decodedAsString.split('').map(function(x){return x.charCodeAt(0);});
+
+        // Turn number array into byte-array
+        const binData     = new Uint8Array(data);
+
+        // Pako magic
+        const uncompressed = pako.ungzip(binData);
+
+        // Convert gunzipped byteArray back to ascii string:
+        return this._arrayToBinaryString(uncompressed);
+    }
+
+    _arrayToBinaryString(array) {
+        var str = '';
+        for (var i = 0; i < array.length; ++i) {
+            str += String.fromCharCode(array[i]);
+        }
+        return str;
+    }
+
+    _strDataToFile(data, filename) {
+        let bstr = data, n = bstr.length, u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename);
+    }
+
+    async _sendOnClickModeOnLoad() {
+        try {
+            const b64gzip = document.getElementById('b64gzip').getAttribute("data-b64gzip");
+            const filename = document.getElementById('b64gzip').getAttribute("data-filename");
+            const strData = this._decompressGz(b64gzip);
+
+            let files = [];
+            files.push(this._strDataToFile(strData, filename))
+            const plural = false;//strData.length > 1;
+
+            this._onPeers(this._getPeers());
+
+            const xInstructions = document.querySelectorAll('x-instructions')[0];
+            xInstructions.setAttribute('desktop', 'Click peer to send ' + (plural ? "files" : filename));
+            xInstructions.setAttribute('mobile', 'Tap peer to send ' + (plural ? "files" : filename));
+
+            const xNoPeers = document.querySelectorAll('x-no-peers')[0];
+            if (!plural) {
+                xNoPeers.getElementsByTagName('h2')[0].innerHTML = `<i>${filename}</i><br>Open Snapdrop on other devices to send`
+            }
+
+            const xPasteAreaCancelBtn = document.getElementById('cancelSendOnClickModeBtn');
+            xPasteAreaCancelBtn.addEventListener('click', () => {
+                console.log("click")
+                location.href = "https://snapdrop.net/";
+            })
+            xPasteAreaCancelBtn.removeAttribute('hidden');
+
+            Events.on('paste-pointerdown', (e) => this._sendFilesOnPointerDown(e, files));
+        } catch (e) {
+            console.log(e)
+            Events.fire('notify-user', 'Something went wrong. Redirect in 5 seconds...');
+            setTimeout(function() {
+                location.href = "https://snapdrop.net/";
+            }, 5000)
+        }
+    }
+
+    _sendFilesOnPointerDown(e, files) {
+        // send the pasted file/text content
+        const peerId = e.detail.peerId;
+        console.log(files)
+        if (files.length > 0) {
+            Events.fire('files-selected', {
+                files: files,
+                to: peerId
+            });
+        }
+    }
+
     _onPaste(e) {
         const files = e.clipboardData.files || e.clipboardData.items
             .filter(i => i.type.indexOf('image') > -1)
@@ -75,7 +173,7 @@ class PeerUI {
     html() {
         return `
             <label class="column center" title="Click to send files or right click to send a text">
-                <input type="file" multiple>
+                
                 <x-icon shadow="1">
                     <svg class="icon"><use xlink:href="#"/></svg>
                 </x-icon>
@@ -86,7 +184,7 @@ class PeerUI {
                 <div class="name font-subheading"></div>
                 <div class="device-name font-body2"></div>
                 <div class="status font-body2"></div>
-            </label>`
+            </label>`;
     }
 
     constructor(peer) {
@@ -98,6 +196,8 @@ class PeerUI {
     _initDom() {
         const el = document.createElement('x-peer');
         el.id = this._peer.id;
+        el.name = this._peer.name;
+        el.rtcSupported = this._peer.rtcSupported;
         el.innerHTML = this.html();
         el.ui = this;
         el.querySelector('svg use').setAttribute('xlink:href', this._icon());
@@ -108,17 +208,18 @@ class PeerUI {
     }
 
     _bindListeners(el) {
-        el.querySelector('input').addEventListener('change', e => this._onFilesSelected(e));
-        el.addEventListener('drop', e => this._onDrop(e));
-        el.addEventListener('dragend', e => this._onDragEnd(e));
-        el.addEventListener('dragleave', e => this._onDragEnd(e));
-        el.addEventListener('dragover', e => this._onDragOver(e));
-        el.addEventListener('contextmenu', e => this._onRightClick(e));
-        el.addEventListener('touchstart', e => this._onTouchStart(e));
-        el.addEventListener('touchend', e => this._onTouchEnd(e));
-        // prevent browser's default file drop behavior
-        Events.on('dragover', e => e.preventDefault());
-        Events.on('drop', e => e.preventDefault());
+        // somehow pointerdown event does not work with Async Clipboard API on Safari.
+        el.addEventListener('touchend', (e) => this._onPastePointerDown(e));
+        el.addEventListener('click', (e) => this._onPastePointerDown(e));
+    }
+
+    _onPastePointerDown(e) {
+        // Prevents triggering of event twice on touch devices
+        e.stopPropagation();
+        e.preventDefault();
+        Events.fire('paste-pointerdown', {
+            peerId: this._peer.id
+        });
     }
 
     _displayName() {
@@ -382,10 +483,10 @@ class ReceiveTextDialog extends Dialog {
 class Toast extends Dialog {
     constructor() {
         super('toast');
-        Events.on('notify-user', e => this._onNotfiy(e.detail));
+        Events.on('notify-user', e => this._onNotifiy(e.detail));
     }
 
-    _onNotfiy(message) {
+    _onNotifiy(message) {
         this.$el.textContent = message;
         this.show();
         setTimeout(_ => this.hide(), 3000);
