@@ -112,7 +112,7 @@ class PeersUI {
                     noPeersMessage = `<i>${descriptor}</i><br>Open Snapdrop on other devices to send directly`
                 }
             } else if (shortcutsData["type"] === "text") {
-                text = shortcutsData["text"];
+                text = atob(shortcutsData["text"]);
                 descriptor = this._isValidHttpUrl(text) ? "URL" : "text";
                 noPeersMessage = `Open Snapdrop on other devices to send ${descriptor} directly`
             } else {
