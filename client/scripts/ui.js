@@ -21,7 +21,7 @@ class PeersUI {
         Events.on('peers', e => this._onPeers(e.detail));
         Events.on('file-progress', e => this._onFileProgress(e.detail));
         Events.on('paste', e => this._onPaste(e));
-        this._sendOnClickModeOnLoad()
+        this._activateSendOnClickModeOnLoad()
     }
 
     _onPeerJoined(peer) {
@@ -66,60 +66,63 @@ class PeersUI {
         return peers;
     }
 
-    _decompressGz(b64data) {
-        // source: https://stackoverflow.com/a/22675494/14678591
-        // Decode base64 (convert ascii to binary)
-        const decodedAsString     = atob(b64data);
-
-        // Convert binary string to character-number array
-        const data = decodedAsString.split('').map(function(x){return x.charCodeAt(0);});
-
-        // Turn number array into byte-array
-        const binData     = new Uint8Array(data);
-
-        // Pako magic
-        const uncompressed = pako.ungzip(binData);
-
-        // Convert gunzipped byteArray back to ascii string:
-        return this._arrayToBinaryString(uncompressed);
-    }
-
-    _arrayToBinaryString(array) {
-        var str = '';
-        for (var i = 0; i < array.length; ++i) {
-            str += String.fromCharCode(array[i]);
-        }
-        return str;
-    }
-
-    _strDataToFile(data, filename) {
-        let bstr = data, n = bstr.length, u8arr = new Uint8Array(n);
+    _base64DataToFile(data, filename, options = {}) {
+        let bstr = atob(data), n = bstr.length, u8arr = new Uint8Array(n);
         while(n--){
             u8arr[n] = bstr.charCodeAt(n);
         }
-        return new File([u8arr], filename);
+        return new File([u8arr], filename, options);
     }
 
-    async _sendOnClickModeOnLoad() {
+    _isValidHttpUrl(string) {
+        let url;
         try {
-            const b64gzip = document.getElementById('b64gzip').getAttribute("data-b64gzip");
-            const filename = document.getElementById('b64gzip').getAttribute("data-filename");
-            const strData = this._decompressGz(b64gzip);
+            url = new URL(string);
+        } catch (_) {
+            return false;
+        }
+        return url.protocol === "http:" || url.protocol === "https:";
+    }
 
+    async _activateSendOnClickModeOnLoad() {
+        try {
+            let descriptor = "file";
             let files = [];
-            files.push(this._strDataToFile(strData, filename))
-            const plural = false;//strData.length > 1;
+            let text = "";
+
+            const shortcutsData = JSON.parse(document.getElementById('shortcuts_data_json').getAttribute("data-json"));
+            console.debug(shortcutsData);
+
+            if (shortcutsData["type"] === "files") {
+                for (let i = 0; i < shortcutsData.files.length; i++) {
+                    let file = shortcutsData.files[i];
+                    let base64data = file["base64data"];
+                    let filename = file["filename"];
+                    let lastModifiedUnixEpoch = Date.parse(file["lastModified"]);
+                    files.push(this._base64DataToFile(base64data, filename, {lastModified: lastModifiedUnixEpoch}))
+                }
+
+                const plural = files.length > 1;
+                if (files.length > 1) {
+                    descriptor = `${files.length} files`;
+                } else if (files.length === 1) {
+                    descriptor = shortcutsData.files[0]["filename"];
+                }
+            } else if (shortcutsData["type"] === "text") {
+                text = shortcutsData["text"];
+                descriptor = this._isValidHttpUrl(text) ? "URL" : "text";
+            } else {
+                throw new DOMException("'data-type'-attribute must be 'files' or 'text'");
+            }
 
             this._onPeers(this._getPeers());
 
             const xInstructions = document.querySelectorAll('x-instructions')[0];
-            xInstructions.setAttribute('desktop', 'Click peer to send ' + (plural ? "files" : filename));
-            xInstructions.setAttribute('mobile', 'Tap peer to send ' + (plural ? "files" : filename));
+            xInstructions.setAttribute('desktop', `Click peer to send ${descriptor} directly`);
+            xInstructions.setAttribute('mobile', `Tap peer to send ${descriptor} directly`);
 
             const xNoPeers = document.querySelectorAll('x-no-peers')[0];
-            if (!plural) {
-                xNoPeers.getElementsByTagName('h2')[0].innerHTML = `<i>${filename}</i><br>Open Snapdrop on other devices to send`
-            }
+            xNoPeers.getElementsByTagName('h2')[0].innerHTML = `<i>${descriptor}</i><br>Open Snapdrop on other devices to send directly`
 
             const xPasteAreaCancelBtn = document.getElementById('cancelSendOnClickModeBtn');
             xPasteAreaCancelBtn.addEventListener('click', () => {
@@ -128,7 +131,7 @@ class PeersUI {
             })
             xPasteAreaCancelBtn.removeAttribute('hidden');
 
-            Events.on('paste-pointerdown', (e) => this._sendFilesOnPointerDown(e, files));
+            Events.on('paste-pointerdown', (e) => this._sendOnPointerDown(e, files, text));
         } catch (e) {
             console.log(e)
             Events.fire('notify-user', 'Something went wrong. Redirect in 5 seconds...');
@@ -138,13 +141,17 @@ class PeersUI {
         }
     }
 
-    _sendFilesOnPointerDown(e, files) {
+    _sendOnPointerDown(e, files, text) {
         // send the pasted file/text content
         const peerId = e.detail.peerId;
-        console.log(files)
         if (files.length > 0) {
             Events.fire('files-selected', {
                 files: files,
+                to: peerId
+            });
+        } else if (text.length > 0) {
+            Events.fire('send-text', {
+                text: text,
                 to: peerId
             });
         }
