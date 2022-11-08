@@ -87,6 +87,7 @@ class PeersUI {
     async _activateSendOnClickModeOnLoad() {
         try {
             let descriptor = "file";
+            let noPeersMessage = "";
             let files = [];
             let text = "";
 
@@ -105,12 +106,15 @@ class PeersUI {
                 const plural = files.length > 1;
                 if (files.length > 1) {
                     descriptor = `${files.length} files`;
+                    noPeersMessage = `Open Snapdrop on other devices to send ${descriptor} directly`
                 } else if (files.length === 1) {
                     descriptor = shortcutsData.files[0]["filename"];
+                    noPeersMessage = `<i>${descriptor}</i><br>Open Snapdrop on other devices to send directly`
                 }
             } else if (shortcutsData["type"] === "text") {
                 text = shortcutsData["text"];
                 descriptor = this._isValidHttpUrl(text) ? "URL" : "text";
+                noPeersMessage = `Open Snapdrop on other devices to send ${descriptor} directly`
             } else {
                 throw new DOMException("'data-type'-attribute must be 'files' or 'text'");
             }
@@ -122,7 +126,7 @@ class PeersUI {
             xInstructions.setAttribute('mobile', `Tap peer to send ${descriptor} directly`);
 
             const xNoPeers = document.querySelectorAll('x-no-peers')[0];
-            xNoPeers.getElementsByTagName('h2')[0].innerHTML = `<i>${descriptor}</i><br>Open Snapdrop on other devices to send directly`
+            xNoPeers.getElementsByTagName('h2')[0].innerHTML = noPeersMessage;
 
             const xPasteAreaCancelBtn = document.getElementById('cancelSendOnClickModeBtn');
             xPasteAreaCancelBtn.addEventListener('click', () => {
@@ -134,9 +138,9 @@ class PeersUI {
             Events.on('paste-pointerdown', (e) => this._sendOnPointerDown(e, files, text));
         } catch (e) {
             console.log(e)
-            Events.fire('notify-user', 'Something went wrong. Redirect in 5 seconds...');
+            Events.fire('notify-user', 'Something went wrong. Trying again in 5 seconds...');
             setTimeout(function() {
-                location.href = "https://snapdrop.net/";
+                location.reload();
             }, 5000)
         }
     }
