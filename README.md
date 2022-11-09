@@ -21,6 +21,7 @@ Install the shortcuts by following the links above with your iOS-device and clic
 - Tap `share file(s) via Snapdrop` in the row of share options
 - Wait for the browser tab to open and tap the device name of a Snapdrop user on the same network.
 
+<br><br><br>
 
 # Snapdrop 
 
