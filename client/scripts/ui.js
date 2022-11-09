@@ -130,8 +130,7 @@ class PeersUI {
 
             const xPasteAreaCancelBtn = document.getElementById('cancelSendOnClickModeBtn');
             xPasteAreaCancelBtn.addEventListener('click', () => {
-                console.log("click")
-                location.href = "https://snapdrop.net/";
+                window.close();
             })
             xPasteAreaCancelBtn.removeAttribute('hidden');
 

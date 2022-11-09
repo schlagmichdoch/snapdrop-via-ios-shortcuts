@@ -77,8 +77,15 @@ class ServerConnection {
     }
 
     _onVisibilityChange() {
-        if (document.hidden) return;
-        this._connect();
+        // closing tab only possible when script is created from ios shortcuts
+        setTimeout(() => {
+            if (document.hidden) {
+                this._disconnect();
+                window.close();
+            } else {
+                this._connect();
+            }
+        }, 0)
     }
 
     _isConnected() {
