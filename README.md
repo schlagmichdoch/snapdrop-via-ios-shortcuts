@@ -1,3 +1,27 @@
+# Snapdrop via ios shortcuts
+This is a fork of [Snapdrop](https://github.com/RobinLinus/snapdrop).
+
+It differs only in code for the front end.
+
+## Overview
+There are three total shortcuts to send content via Snapdrop directly from the share menu:
+
+1. [share images and files directly from share menu](https://routinehub.co/shortcut/9618)
+2. [share texts and URLs of any kind directly from share menu](https://routinehub.co/shortcut/13371)
+3. [share files and folders as ZIP archive directly from share menu](https://routinehub.co/shortcut/13372)
+
+Install the shortcuts by following the links above with your iOS-device and click *Get Shortcut* 
+
+## How to use:
+### Receive an item using Snapdrop
+- Open [https://snapdrop.net](https://snapdrop.net)
+
+### Send an item using Snapdrop
+- Open the item, then tap the Share button, Share, the More options button, or another button that displays the app’s sharing options.
+- Tap `share file(s) via Snapdrop` in the row of share options
+- Wait for the browser tab to open and tap the device name of a Snapdrop user on the same network.
+
+
 # Snapdrop 
 
 [Snapdrop](https://snapdrop.net): local file sharing in your browser. Inspired by Apple's Airdrop.
